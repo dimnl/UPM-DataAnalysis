@@ -58,7 +58,7 @@ def train_model(df):
 
 @st.cache
 def load_data():
-    return pd.read_csv('"https://raw.githubusercontent.com/dimnl/UPM-DataAnalysis/main/data_prep.csv"')
+    return pd.read_csv("https://raw.githubusercontent.com/dimnl/UPM-DataAnalysis/main/data_prep.csv")
 
 
 if __name__ == '__main__':
