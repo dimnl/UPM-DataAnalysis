@@ -255,6 +255,7 @@ def main():
         st.altair_chart(feature1_chart, use_container_width=True)
 
         st.markdown("Second component")
+        sorted_idx = comp[1].argsort()[-features_to_display:]
         feature2_df = pd.DataFrame({'Importances': comp[1][sorted_idx], 'Feature names': feature_names[sorted_idx]})
         feature2_chart = alt.Chart(feature2_df).mark_bar().encode(
             x='Importances',
@@ -267,6 +268,7 @@ def main():
         st.altair_chart(feature2_chart, use_container_width=True)
 
         st.markdown("Third component")
+        sorted_idx = comp[2].argsort()[-features_to_display:]
         feature3_df = pd.DataFrame({'Importances': comp[2][sorted_idx], 'Feature names': feature_names[sorted_idx]})
         feature3_chart = alt.Chart(feature3_df).mark_bar().encode(
             x='Importances',
