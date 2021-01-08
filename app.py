@@ -23,7 +23,7 @@ def main():
         """
         **Important notice**
         
-        This is a fully self-contained application and it may take a while the first time the analysis is computed.
+        This is a fully self-contained application and it may take a while the first time each page is computed.
         The results are cached, however, and there is no need to wait that long again after this first calculation.
         """
     )
