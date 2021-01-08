@@ -174,26 +174,27 @@ def main():
 
         st.altair_chart(corr_chart, use_container_width=True)
 
-        st.subheader("Correlation in detail")
-        st.markdown("""
-        Which two features would you like to see in more detail?
-        """)
-
-        feature_1 = st.selectbox("First feature", options=feature_names, index=24)
-        feature_2 = st.selectbox("Second feature", options=feature_names, index=25)
-        
-        line_chart_feature = alt.Chart(df).mark_circle(size=15).encode(
-            x = feature_1,
-            y = feature_2,
-            color = alt.Color('relevant:O', scale=alt.Scale(scheme="tableau10")),
-            tooltip=[feature_1, feature_2, 'relevant']
-        ).interactive()
-
-        st.altair_chart(line_chart_feature, use_container_width=True)
-
-        st.markdown("""
-        Also note that the scatterplot is interactive, meaning that you could zoom in and move around. 
-        """)
+        if st.checkbox("Show feature correlations in more detail"):
+            st.subheader("Correlation in detail")
+            st.markdown("""
+            Which two features would you like to see in more detail?
+            """)
+    
+            feature_1 = st.selectbox("First feature", options=feature_names, index=24)
+            feature_2 = st.selectbox("Second feature", options=feature_names, index=25)
+            
+            line_chart_feature = alt.Chart(df).mark_circle(size=15).encode(
+                x = feature_1,
+                y = feature_2,
+                color = alt.Color('relevant:O', scale=alt.Scale(scheme="tableau10")),
+                tooltip=[feature_1, feature_2, 'relevant']
+            ).interactive()
+    
+            st.altair_chart(line_chart_feature, use_container_width=True)
+    
+            st.markdown("""
+            Also note that the scatterplot is interactive, meaning that you could zoom in and move around. 
+            """)
         
     elif page == 'PCA':
         st.title('Principal Component Analysis')
