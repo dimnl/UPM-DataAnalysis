@@ -7,16 +7,35 @@ import matplotlib.pyplot as plt
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import normalize
+from sklearn.preprocessing import MinMaxScaler, StandardScaler, normalize
+from sklearn.decomposition import PCA
+from sklearn.inspection import permutation_importance
 
 def main():
-
     df = load_data()
     dirty_df = load_dirty_data()
     feature_names = df.drop('relevant', axis=1).columns
     st.sidebar.title("UPM Data Analysis")
-    page = st.sidebar.selectbox("Choose a page", ['Homepage', 'Exploration', 'Prediction'])
+    page = st.sidebar.selectbox("Choose a page", ['Homepage', 'Exploration', 'PCA', 'Prediction'])
+    
+    st.sidebar.markdown(
+        """
+        **Important notice**:
+        
+        This is a fully self-contained application and it may take a while the first time the analysis is computed.
+        The results are cached, however, and there is no need to wait that long again after this first calculation.
+        """
+    )
+    st.sidebar.markdown(
+        """
+        **Additional information**:
+        
+        All  plots are interactive, you can point your mouse on the graphs' data points for additional information.
+        Furthermore, you could also zoom in and move around in line graphs.
 
+        Source code can be found at [GitHub](https://github.com/dimnl/UPM-DataAnalysis).
+        """
+    )
     if page == 'Homepage':
         st.title('Predicting Relevancy of Colonoscopy frames')
         st.header('Problem definition')
@@ -37,7 +56,7 @@ def main():
         dataset.
         """)
         
-        st.markdown('')
+
            
     elif page == 'Exploration':
         st.title('Explore the Dataset and its characteristics')
@@ -118,7 +137,7 @@ def main():
             st.dataframe(dirty_df.describe())
 
         if st.checkbox('Show null values per column'):
-            st.dataframe(dirty_df.isnull().sum())
+            st.table(dirty_df.isnull().sum().sort_values(ascending=False))
 
         st.header('Cleaning dataset')
         st.markdown("The sub_mean_3 can be calculated from the other sum_means and the mean")
@@ -172,7 +191,94 @@ def main():
         ).interactive()
 
         st.altair_chart(line_chart_feature, use_container_width=True)
+        
+    elif page == 'PCA':
+        st.title('Principal Component Analysis')
+        st.header('2 Dimensional')
+        st.markdown("With MinMax Normalization")
+        df_pca, _ = pca_2d(df)
+        pca_2d_chart = alt.Chart(df_pca.join(df.relevant)).mark_circle(size=15).encode(
+                x = 'x',
+                y = 'y',
+                color = alt.Color('relevant:O', scale=alt.Scale(scheme="tableau10")),
+                tooltip=['x', 'y', 'relevant']
+            ).interactive()
+        
+        st.altair_chart(pca_2d_chart, use_container_width=True)
 
+        st.header('3 Dimensional')
+        st.markdown("With MinMax Normalization")
+        df_pca, pca = pca_3d(df)
+        
+        pca_3d_xy_chart = alt.Chart(df_pca.join(df.relevant)).mark_circle(size=15).encode(
+            x = 'x',
+            y = 'y',
+            color = alt.Color('relevant:O', scale=alt.Scale(scheme="tableau10")),
+            tooltip=['x', 'y', 'relevant']
+        ).interactive()
+
+        st.altair_chart(pca_3d_xy_chart, use_container_width=True)
+
+        pca_3d_xz_chart = alt.Chart(df_pca.join(df.relevant)).mark_circle(size=15).encode(
+            x = 'x',
+            y = 'z',
+            color = alt.Color('relevant:O', scale=alt.Scale(scheme="tableau10")),
+            tooltip=['x', 'z', 'relevant']
+        ).interactive()
+
+        st.altair_chart(pca_3d_xz_chart, use_container_width=True)
+
+        pca_3d_yz_chart = alt.Chart(df_pca.join(df.relevant)).mark_circle(size=15).encode(
+            x = 'y',
+            y = 'z',
+            color = alt.Color('relevant:O', scale=alt.Scale(scheme="tableau10")),
+            tooltip=['y', 'z', 'relevant']
+        ).interactive()
+
+        st.altair_chart(pca_3d_yz_chart, use_container_width=True)
+
+        st.subheader('Feature importances')
+        features_to_display = st.slider(label="Amount of features to display", min_value=1, max_value=26, value=10, step=1)
+        comp = abs(pca.components_)
+        sorted_idx = comp[0].argsort()[-features_to_display:]
+
+        st.markdown("First component")
+        feature1_df = pd.DataFrame({'Importances': comp[0][sorted_idx], 'Feature names': feature_names[sorted_idx]})
+        feature1_chart = alt.Chart(feature1_df).mark_bar().encode(
+            x='Importances',
+            y=alt.Y('Feature names:N', sort='-x'),
+            tooltip=[
+                alt.Tooltip("Feature names", title="Feature name"),
+                alt.Tooltip("Importances", title="Importance")
+            ]
+        )
+        st.altair_chart(feature1_chart, use_container_width=True)
+
+        st.markdown("Second component")
+        feature2_df = pd.DataFrame({'Importances': comp[1][sorted_idx], 'Feature names': feature_names[sorted_idx]})
+        feature2_chart = alt.Chart(feature2_df).mark_bar().encode(
+            x='Importances',
+            y=alt.Y('Feature names:N', sort='-x'),
+            tooltip=[
+                alt.Tooltip("Feature names", title="Feature name"),
+                alt.Tooltip("Importances", title="Importance")
+            ]
+        )
+        st.altair_chart(feature2_chart, use_container_width=True)
+
+        st.markdown("Third component")
+        feature3_df = pd.DataFrame({'Importances': comp[2][sorted_idx], 'Feature names': feature_names[sorted_idx]})
+        feature3_chart = alt.Chart(feature3_df).mark_bar().encode(
+            x='Importances',
+            y=alt.Y('Feature names:N', sort='-x'),
+            tooltip=[
+                alt.Tooltip("Feature names", title="Feature name"),
+                alt.Tooltip("Importances", title="Importance")
+            ]
+        )
+        st.altair_chart(feature3_chart, use_container_width=True)
+
+                
     else:
         st.title('Modelling')
         model, accuracy = train_model(df)
@@ -204,16 +310,42 @@ def main():
         )
         st.altair_chart(feature_chart, use_container_width=True)
 
-    st.sidebar.markdown(
-        """
-        **Additional information**:
-        
-        All  plots are interactive, you can point your mouse on the graphs' data points for additional information.
-        Furthermore, you could also zoom in and move around in line graphs.
+        st.subheader("Permutation importances")
+        _, _, X_test, y_test = split_and_normalize_df(df)
+        perm_df = calc_permutation_importance(model, X_test, y_test, feature_names)
+        perm_chart = alt.Chart(perm_df).mark_bar().encode(
+            x='Importances',
+            y=alt.Y('Feature names:N', sort='-x'),
+            tooltip=[
+                alt.Tooltip("Feature names", title="Feature name"),
+                alt.Tooltip("Importances", title="Importance")
+            ]
+        )
+        st.altair_chart(perm_chart, use_container_width=True)
 
-        Source code can be found at [GitHub](https://github.com/dimnl/UPM-DataAnalysis).
-        """
-    )
+def minmax_scale(df):
+    df_train = df.drop('relevant', axis=1)
+    scaler = MinMaxScaler()
+    df_train = scaler.fit_transform(df_train)
+    return df_train
+
+@st.cache
+def pca_2d(df):
+    df_train = minmax_scale(df)
+    
+    pca = PCA(n_components=2)
+    pca_comps = pca.fit_transform(df_train)
+    df_pca = pd.DataFrame(data=pca_comps, columns=['x', 'y'])
+    return df_pca, pca
+
+@st.cache
+def pca_3d(df):
+    df_train = minmax_scale(df)
+    
+    pca = PCA(n_components=3)
+    pca_comps = pca.fit_transform(df_train)
+    df_pca = pd.DataFrame(data=pca_comps, columns=['x', 'y', 'z'])
+    return df_pca, pca
 
 @st.cache
 def split_and_normalize_df(df):
@@ -235,6 +367,14 @@ def train_model(df):
 
     return model, model.score(X_test_norm, y_test)
 
+@st.cache()
+def calc_permutation_importance(clf, X_test, y_test, feature_names):
+    perm_importance =  permutation_importance(clf, X_test, y_test, n_repeats=5, random_state=1)
+    sorted_idx = perm_importance.importances_mean.argsort()
+        
+    perm_df = pd.DataFrame({'Importances': perm_importance.importances_mean[sorted_idx].T, 'Feature names': feature_names[sorted_idx]})
+    return perm_df
+    
 @st.cache
 def load_data():
     return pd.read_csv("https://raw.githubusercontent.com/dimnl/UPM-DataAnalysis/main/data/data_prep.csv")
