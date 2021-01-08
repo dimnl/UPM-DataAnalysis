@@ -2,6 +2,8 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import base64
+import pickle
+from urllib.request import urlopen
 
 import altair as alt
 import matplotlib.pyplot as plt
@@ -283,8 +285,13 @@ def main():
                 
     else:
         st.title('Modelling')
-        model, accuracy = train_model(df)
-        st.write('Accuracy of trained model (Random Forest): ' + str(accuracy))
+        btn_retrain = st.button('Retrain model (takes some time!)')
+        if btn_retrain:
+            model, accuracy = train_model(df)
+            st.write('Accuracy of trained model (Random Forest): ' + str(accuracy))
+        else:
+            model = load_model()
+
         st.header('Make prediction')
 
         st.markdown("""
@@ -340,17 +347,24 @@ def main():
         st.altair_chart(feature_chart, use_container_width=True)
 
         st.subheader("Permutation importances")
-        _, _, X_test, y_test = split_and_normalize_df(df)
-        perm_df = calc_permutation_importance(model, X_test, y_test, feature_names)
-        perm_chart = alt.Chart(perm_df).mark_bar().encode(
-            x='Importances',
-            y=alt.Y('Feature names:N', sort='-x'),
-            tooltip=[
-                alt.Tooltip("Feature names", title="Feature name"),
-                alt.Tooltip("Importances", title="Importance")
-            ]
-        )
-        st.altair_chart(perm_chart, use_container_width=True)
+        if btn_retrain:
+            _, _, X_test, y_test = split_and_normalize_df(df)
+            perm_df = calc_permutation_importance(model, X_test, y_test, feature_names)
+            perm_chart = alt.Chart(perm_df).mark_bar().encode(
+                x='Importances',
+                y=alt.Y('Feature names:N', sort='-x'),
+                tooltip=[
+                    alt.Tooltip("Feature names", title="Feature name"),
+                    alt.Tooltip("Importances", title="Importance")
+                ]
+            )
+            st.altair_chart(perm_chart, use_container_width=True)
+        else:
+            st.markdown("""
+            Unfortunately the inspection of the permutaion importances only functions with a trained model from scratch.
+            This is a downside of loading the pre-trained model as we cannot inspect the model that thoroughly with sklearn's inspections library.
+            Please select the retrain button on top to also see these.
+            """)
 
 def minmax_scale(df):
     df_train = df.drop('relevant', axis=1)
@@ -422,6 +436,13 @@ def generate_download_link(df):
     csv = df.to_csv(index=False)
     b64 = base64.b64encode(csv.encode()).decode()
     return csv, b64
+
+@st.cache(allow_output_mutation=True)
+def load_model():
+    url = "https://raw.githubusercontent.com/dimnl/UPM-DataAnalysis/main/rfc.sav"
+    with urlopen(url) as f:
+        loaded_model = pickle.load(f)
+    return loaded_model
 
 @st.cache
 def load_data():
