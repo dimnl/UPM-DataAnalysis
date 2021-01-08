@@ -12,7 +12,9 @@ from sklearn.preprocessing import normalize
 def main():
 
     df = load_data()
-
+    dirty_df = load_dirty_data()
+    feature_names = df.drop('relevant', axis=1).columns
+    st.sidebar.title("UPM Data Analysis")
     page = st.sidebar.selectbox("Choose a page", ['Homepage', 'Exploration', 'Prediction'])
 
     if page == 'Homepage':
@@ -110,13 +112,31 @@ def main():
         
         if st.checkbox('Show sample dataset'):
             st.markdown('Some rows can be seen below to see what the data looks like:')
-            st.dataframe(df.head())
+            st.dataframe(dirty_df.head())
         
         if st.checkbox('Show statistics per column'):
-            st.dataframe(df.describe())
+            st.dataframe(dirty_df.describe())
+
+        if st.checkbox('Show null values per column'):
+            st.dataframe(dirty_df.isnull().sum())
+
+        st.header('Cleaning dataset')
+        st.markdown("The sub_mean_3 can be calculated from the other sum_means and the mean")
+        st.code('''
+        sub_mean_3 = 4*mean - sub_mean_1 - sub_mean_2 - sub_mean_4
+        ''', language='python')
+
+
+        st.markdown("""
+        The cost_1 and cost_2 are highly correlated (as is also shown below) and have near equal values.
+        Therefore, it is chosen to impute the cost_2 values with cost_1 values.
+        """)
+
+        st.markdown("Lastly, as there are only two missing values from relevant, we can simply drop these rows.")        
+
         
         st.header('Analysing column relations')
-
+        
         corr_data = df.corr().stack().reset_index().rename(
             columns={0: 'Correlation', 'level_0': 'Feature 1', 'level_1': 'Feature 2'}
         )
@@ -133,6 +153,26 @@ def main():
 
         st.altair_chart(corr_chart, use_container_width=True)
 
+        st.subheader("Correlation in detail")
+        st.markdown("""
+        Which two features would you like to see in more detail?
+
+        Also note that the scatterplot is interactive, meaning that you could zoom in and move around. 
+
+        """)
+
+        feature_1 = st.selectbox("First feature", options=feature_names)
+        feature_2 = st.selectbox("Second feature", options=feature_names)
+        
+        line_chart_feature = alt.Chart(df).mark_circle(size=15).encode(
+            x = feature_1,
+            y = feature_2,
+            color = alt.Color('relevant:O', scale=alt.Scale(scheme="tableau10")),
+            tooltip=[feature_1, feature_2, 'relevant']
+        ).interactive()
+
+        st.altair_chart(line_chart_feature, use_container_width=True)
+
     else:
         st.title('Modelling')
         model, accuracy = train_model(df)
@@ -148,12 +188,11 @@ def main():
 
         st.header('Inspect feature importances')
         rf_importance = model.feature_importances_
-        feature_names = df.drop('relevant', axis=1).columns
-        
+                
         features_to_display = st.slider(label="Amount of features to display", min_value=1, max_value=26, value=10, step=1)
 
         sorted_idx = rf_importance.argsort()[-features_to_display:]
-
+        
         feature_df = pd.DataFrame({'Importances': rf_importance[sorted_idx], 'Feature names': feature_names[sorted_idx]})
         feature_chart = alt.Chart(feature_df).mark_bar().encode(
             x='Importances',
@@ -164,6 +203,17 @@ def main():
             ]
         )
         st.altair_chart(feature_chart, use_container_width=True)
+
+    st.sidebar.markdown(
+        """
+        **Additional information**:
+        
+        All  plots are interactive, you can point your mouse on the graphs' data points for additional information.
+        Furthermore, you could also zoom in and move around in line graphs.
+
+        Source code can be found at [GitHub](https://github.com/dimnl/UPM-DataAnalysis).
+        """
+    )
 
 @st.cache
 def split_and_normalize_df(df):
@@ -187,8 +237,11 @@ def train_model(df):
 
 @st.cache
 def load_data():
-    return pd.read_csv("https://raw.githubusercontent.com/dimnl/UPM-DataAnalysis/main/data_prep.csv")
-
-
+    return pd.read_csv("https://raw.githubusercontent.com/dimnl/UPM-DataAnalysis/main/data/data_prep.csv")
+    
+@st.cache
+def load_dirty_data():
+    return pd.read_csv("https://raw.githubusercontent.com/dimnl/UPM-DataAnalysis/main/data/data.csv")
+    
 if __name__ == '__main__':
     main()
