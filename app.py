@@ -58,8 +58,12 @@ def main():
         block for being relevant or not as, well as any other useful information from the analysis of the
         dataset.
         """)
-        
 
+        st.header("Colonoscopy definition")
+        st.markdown("""
+        Colonoscopy is the examination process of the digestive system with a camera. 
+        This process helps in visually diagnosing different digestive system related diseases.
+        """)
            
     elif page == 'Exploration':
         st.title('Explore the Dataset and its characteristics')
