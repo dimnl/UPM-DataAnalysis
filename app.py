@@ -180,8 +180,8 @@ def main():
 
         """)
 
-        feature_1 = st.selectbox("First feature", options=feature_names)
-        feature_2 = st.selectbox("Second feature", options=feature_names)
+        feature_1 = st.selectbox("First feature", options=feature_names, index=24)
+        feature_2 = st.selectbox("Second feature", options=feature_names, index=25)
         
         line_chart_feature = alt.Chart(df).mark_circle(size=15).encode(
             x = feature_1,
