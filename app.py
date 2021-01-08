@@ -20,7 +20,7 @@ def main():
     
     st.sidebar.markdown(
         """
-        **Important notice**:
+        **Important notice**
         
         This is a fully self-contained application and it may take a while the first time the analysis is computed.
         The results are cached, however, and there is no need to wait that long again after this first calculation.
@@ -28,7 +28,7 @@ def main():
     )
     st.sidebar.markdown(
         """
-        **Additional information**:
+        **Additional information**
         
         All  plots are interactive, you can point your mouse on the graphs' data points for additional information.
         Furthermore, you could also zoom in and move around in line graphs.
@@ -284,15 +284,26 @@ def main():
     else:
         st.title('Modelling')
         model, accuracy = train_model(df)
-        st.write('Accuracy: ' + str(accuracy))
+        st.write('Accuracy of trained model: ' + str(accuracy))
         st.header('Make prediction')
-        row_number = st.number_input('Select row', min_value=0, max_value=len(df)-1, value=0)
 
-        st.markdown('#### Predicted')
-        st.text(model.predict(df.drop('relevant', axis=1).loc[row_number].values.reshape(1,-1))[0])
+        st.markdown("""
+        Upload a file to make a prediction, following the structure of the data as defined in Data Exploration.
+        It should be a CSV file and be cleaned already, i.e. not containing empty (or `null`) values.
+        """)
+        
+        uploaded_file = st.file_uploader('Choose a file to predict on')
+        if uploaded_file is not None:
+            df_uploaded = pd.read_csv(uploaded_file)
+            
+            st.markdown('#### Uploaded file')
+            st.dataframe(df_uploaded)
+            
+            st.markdown('#### Predict single sample')
+            row_number = st.number_input('Select row', min_value=0, max_value=len(df)-1, value=0)
 
-        st.markdown('#### Actual value')
-        st.text(df.relevant.loc[row_number])
+            st.write('Predicted relevant: ' + str(int(model.predict(df.drop('relevant', axis=1).loc[row_number].values.reshape(1,-1))[0])))
+            st.write('Actual relevant: ' + str(int(df.relevant.loc[row_number])))
 
         st.header('Inspect feature importances')
         rf_importance = model.feature_importances_
@@ -356,8 +367,8 @@ def split_and_normalize_df(df):
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
 
-    X_train_norm = normalize(X_train, norm='l2')
-    X_test_norm = normalize(X_test, norm='l2')
+    X_train_norm = normalize(X_train, norm='max')
+    X_test_norm = normalize(X_test, norm='max')
 
     return X_train_norm, y_train, X_test_norm, y_test
 
