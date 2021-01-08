@@ -1,6 +1,7 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
+import base64
 
 import altair as alt
 import matplotlib.pyplot as plt
@@ -155,10 +156,9 @@ def main():
 
         
         st.header('Analysing column relations')
-        
-        corr_data = df.corr().stack().reset_index().rename(
-            columns={0: 'Correlation', 'level_0': 'Feature 1', 'level_1': 'Feature 2'}
-        )
+
+        corr_data = calc_correlation(df)
+
         corr_chart = alt.Chart(corr_data).mark_rect().encode(
             x = 'Feature 1',
             y = 'Feature 2',
@@ -284,26 +284,42 @@ def main():
     else:
         st.title('Modelling')
         model, accuracy = train_model(df)
-        st.write('Accuracy of trained model: ' + str(accuracy))
+        st.write('Accuracy of trained model (Random Forest): ' + str(accuracy))
         st.header('Make prediction')
 
         st.markdown("""
-        Upload a file to make a prediction, following the structure of the data as defined in Data Exploration.
+        Upload a file to make a prediction, following the structure of the data as defined in Data Exploration. 
+        The 'relevant' column is not used and does not have to be included; this value is predicted for the uploaded data.
         It should be a CSV file and be cleaned already, i.e. not containing empty (or `null`) values.
         """)
         
         uploaded_file = st.file_uploader('Choose a file to predict on')
         if uploaded_file is not None:
             df_uploaded = pd.read_csv(uploaded_file)
-            
-            st.markdown('#### Uploaded file')
-            st.dataframe(df_uploaded)
-            
-            st.markdown('#### Predict single sample')
-            row_number = st.number_input('Select row', min_value=0, max_value=len(df)-1, value=0)
 
-            st.write('Predicted relevant: ' + str(int(model.predict(df.drop('relevant', axis=1).loc[row_number].values.reshape(1,-1))[0])))
-            st.write('Actual relevant: ' + str(int(df.relevant.loc[row_number])))
+            if st.checkbox('Show uploaded file'):
+                st.dataframe(df_uploaded)
+            
+            if st.checkbox('Predict single sample'):
+                row_number = st.number_input('Select row', min_value=0, max_value=len(df)-1, value=0)
+
+                st.write('Predicted relevant: ' + str(int(model.predict(df.drop('relevant', axis=1).loc[row_number].values.reshape(1,-1))[0])))
+                st.write('Actual relevant: ' + str(int(df.relevant.loc[row_number])))
+
+            if st.checkbox('Predict for whole dataset'):
+                df_predicted = predict_for_uploaded_df(model, df_uploaded)
+                st.dataframe(df_predicted)
+
+                csv, b64 = generate_download_link(df_predicted)
+               
+                st.markdown(
+                    f"""
+                    <a href="data:file/csv;base64, {b64}" download="predicted.csv">
+                    <input type="button" value="Download predicted csv">
+                    </a>
+                    """,
+                    unsafe_allow_html=True
+                )
 
         st.header('Inspect feature importances')
         rf_importance = model.feature_importances_
@@ -343,6 +359,13 @@ def minmax_scale(df):
     return df_train
 
 @st.cache
+def calc_correlation(df):
+    corr_data = df.corr().stack().reset_index().rename(
+        columns={0: 'Correlation', 'level_0': 'Feature 1', 'level_1': 'Feature 2'}
+    )
+    return corr_data
+
+@st.cache
 def pca_2d(df):
     df_train = minmax_scale(df)
     
@@ -360,7 +383,6 @@ def pca_3d(df):
     df_pca = pd.DataFrame(data=pca_comps, columns=['x', 'y', 'z'])
     return df_pca, pca
 
-@st.cache
 def split_and_normalize_df(df):
     X = df.drop('relevant', axis=1)
     y = df.relevant
@@ -380,14 +402,27 @@ def train_model(df):
 
     return model, model.score(X_test_norm, y_test)
 
-@st.cache()
+def predict_for_uploaded_df(clf, uploaded_df):
+    if 'relevant' in uploaded_df.columns:
+        uploaded_df = uploaded_df.drop('relevant', axis=1)
+    predictions = clf.predict(uploaded_df)
+    return uploaded_df.join(pd.DataFrame({'pred_relevant': predictions}))
+
+@st.cache
 def calc_permutation_importance(clf, X_test, y_test, feature_names):
     perm_importance =  permutation_importance(clf, X_test, y_test, n_repeats=5, random_state=1)
     sorted_idx = perm_importance.importances_mean.argsort()
         
     perm_df = pd.DataFrame({'Importances': perm_importance.importances_mean[sorted_idx].T, 'Feature names': feature_names[sorted_idx]})
     return perm_df
-    
+
+@st.cache    
+def generate_download_link(df):
+    # Some encoding/decoding magic to create download
+    csv = df.to_csv(index=False)
+    b64 = base64.b64encode(csv.encode()).decode()
+    return csv, b64
+
 @st.cache
 def load_data():
     return pd.read_csv("https://raw.githubusercontent.com/dimnl/UPM-DataAnalysis/main/data/data_prep.csv")
