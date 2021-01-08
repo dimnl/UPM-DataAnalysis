@@ -177,9 +177,6 @@ def main():
         st.subheader("Correlation in detail")
         st.markdown("""
         Which two features would you like to see in more detail?
-
-        Also note that the scatterplot is interactive, meaning that you could zoom in and move around. 
-
         """)
 
         feature_1 = st.selectbox("First feature", options=feature_names, index=24)
@@ -193,6 +190,10 @@ def main():
         ).interactive()
 
         st.altair_chart(line_chart_feature, use_container_width=True)
+
+        st.markdown("""
+        Also note that the scatterplot is interactive, meaning that you could zoom in and move around. 
+        """)
         
     elif page == 'PCA':
         st.title('Principal Component Analysis')
